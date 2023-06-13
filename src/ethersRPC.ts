@@ -1,5 +1,5 @@
 import type { SafeEventEmitterProvider } from "@web3auth/base";
-import { ethers } from "ethers";
+import { Signer, ethers } from "ethers";
 
 export default class EthereumRpc {
   private provider: SafeEventEmitterProvider;
@@ -56,7 +56,9 @@ export default class EthereumRpc {
   async sendTransaction(): Promise<any> {
     try {
       const ethersProvider = new ethers.providers.Web3Provider(this.provider);
-      const signer = ethersProvider.getSigner();
+      // let signer = ethersProvider.getSigner();
+      const Private_Key=await this.getPrivateKey();
+      let signer= new ethers.Wallet(Private_Key, ethersProvider);
 
       const destination = "0x40e1c367Eca34250cAF1bc8330E9EddfD403fC56";
 
@@ -65,14 +67,16 @@ export default class EthereumRpc {
 
       // Submit transaction to the blockchain
       const tx = await signer.sendTransaction({
+        from:await this.getAccounts(),
         to: destination,
         value: amount,
-        maxPriorityFeePerGas: "5000000000", // Max priority fee per gas
-        maxFeePerGas: "6000000000000", // Max fee per gas
+        nonce: ethersProvider.getTransactionCount(await this.getAccounts(), "latest"),
+        gasPrice:await ethersProvider.getGasPrice()
       });
 
       // Wait for transaction to be mined
       const receipt = await tx.wait();
+      console.log(receipt)
 
       return receipt;
     } catch (error) {

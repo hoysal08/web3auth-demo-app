@@ -1,60 +1,87 @@
 import { useEffect, useState } from "react";
 import { Web3Auth } from "@web3auth/modal";
 import { WALLET_ADAPTERS, CHAIN_NAMESPACES, SafeEventEmitterProvider } from "@web3auth/base";
-import { OpenloginAdapter, OpenloginUserInfo } from "@web3auth/openlogin-adapter";
-import { TorusWalletConnectorPlugin} from "@web3auth/torus-wallet-connector-plugin";
+import { CUSTOM_LOGIN_PROVIDER_TYPE, ColorPalette, OpenloginAdapter, OpenloginUserInfo } from "@web3auth/openlogin-adapter";
+import { TorusWalletConnectorPlugin } from "@web3auth/torus-wallet-connector-plugin";
 import RPC from "./ethersRPC";
 import "./App.css";
-import { ethers } from "ethers";
-import { TorusParams } from "@toruslabs/torus-embed";
+import logo from "./logo.svg"
+import { CoinbaseAdapter } from "@web3auth/coinbase-adapter";
+import { TorusWalletAdapter } from "@web3auth/torus-evm-adapter";
 
-const clientId = "BHRb2TePpTk790LT64lHyRixjbzDLJfns9Qc4gxAythLeOsasyZFy-ZnyAHiP2DuFtVv5oFkOt2Q1h_xZqQyWxA"; // get from https://dashboard.web3auth.io
+const clientId = "BNX8_CA7UJ4znVaCpZtf4RvTm80Dugw8fjZ73s1QdlvATjHdNFDYEi-uoIH_mQeEgNNqmF_Eda06xCMIM_3fDwA"; // get from https://dashboard.web3auth.io
 
 function App() {
   const [web3auth, setWeb3auth] = useState<Web3Auth | null>(null);
   const [provider, setProvider] = useState<SafeEventEmitterProvider | null>(null);
-  const[torusPlugin,setTorusPlugin]=useState<TorusWalletConnectorPlugin|null>(null);
+  const [torusPlugin, setTorusPlugin] = useState<TorusWalletConnectorPlugin | null>(null);
 
   useEffect(() => {
     const init = async () => {
       try {
         const web3auth = new Web3Auth({
-          clientId, 
-          web3AuthNetwork: "testnet", // mainnet, aqua, celeste, cyan or testnet
+          clientId,
+          web3AuthNetwork: "mainnet",
+          storageKey:"local", // mainnet, aqua, celeste, cyan or testnet
           chainConfig: {
             chainNamespace: CHAIN_NAMESPACES.EIP155,
-            chainId: "0x1a4",
-            rpcTarget: "https://goerli.optimism.io",
-            blockExplorer:"https://goerli-optimism.etherscan.io/"// This is the public RPC we have added, please pass on your own endpoint while creating an app
+            displayName: "Sepolia",
+            chainId: "0xaa36a7",
+            rpcTarget: "https://eth-sepolia.public.blastapi.io",
+            blockExplorer: "https://goerli-optimism.etherscan.io/"// This is the public RPC we have added, please pass on your own endpoint while creating an app
           },
+          uiConfig: {
+            theme: "dark",
+            loginMethodsOrder: ["google", "twitter", "discord", "facebook", "reddit", "twitch", "apple", "line", "github", "kakao", "linkedin", "weibo", "wechat", "email_passwordless"],
+            appLogo: "https://svgshare.com/i/u7L.svg", // Your App Logo Here
+          },
+          authMode: "DAPP",
         });
 
         const openloginAdapter = new OpenloginAdapter({
-          loginSettings: {
-            mfaLevel: "default", // Pass on the mfa level of your choice: default, optional, mandatory, none
+          clientId,
+          web3AuthNetwork: "mainnet", // mainnet, aqua, celeste, cyan or testnet
+          chainConfig: {
+            chainNamespace: CHAIN_NAMESPACES.EIP155,
+            displayName: "Sepolia",
+            chainId: "0xaa36a7",
+            rpcTarget: "https://eth-sepolia.public.blastapi.io",
+            blockExplorer: "https://goerli-optimism.etherscan.io/"// This is the public RPC we have added, please pass on your own endpoint while creating an app
           },
-          adapterSettings: { 
-            loginConfig: {
-              // Add login configs corresponding to the provider
-              // Google login
-              // google: {
-              //   name: "Google Login", // The desired name you want to show on the login button
-              //   verifier: "YOUR_GOOGLE_VERIFIER_NAME", // Please create a verifier on the developer dashboard and pass the name here
-              //   typeOfLogin: "google", // Pass on the login provider of the verifier you've created
-              //   clientId: "GOOGLE_CLIENT_ID.apps.googleusercontent.com", // use your app client id you got from google
-              // },
-              // Add other login providers here
-            },
+          adapterSettings: {
+            whiteLabel: {
+              name: "FXDX",
+              logoDark: "https://svgshare.com/i/u7L.svg",
+              logoLight: "https://svgshare.com/i/u7L.svg",
+              dark: true
+
+            }
           }
         });
+
+        const coinbaseAdapter = new CoinbaseAdapter({
+          sessionTime: 3600, // 1 hour in seconds
+          web3AuthNetwork: "mainnet", // mainnet, aqua, celeste, cyan or testnet
+          chainConfig: {
+            chainNamespace: CHAIN_NAMESPACES.EIP155,
+            displayName: "Sepolia",
+            chainId: "0xaa36a7",
+            rpcTarget: "https://eth-sepolia.public.blastapi.io",
+            blockExplorer: "https://goerli-optimism.etherscan.io/"// This is the public RPC we have added, please pass on your own endpoint while creating an app
+          },
+        });
+
         web3auth.configureAdapter(openloginAdapter);
+        web3auth.configureAdapter(coinbaseAdapter);
         setWeb3auth(web3auth);
 
-        await web3auth.initModal();
+        await web3auth.initModal({
 
-        if (web3auth.provider) {
-          setProvider(web3auth.provider);
-        };
+        });
+
+        // if (web3auth.provider) {
+        //   setProvider(web3auth.provider);
+        // };
 
       } catch (error) {
         console.error(error);
@@ -62,32 +89,44 @@ function App() {
     };
     init();
   }, []);
-  
-  useEffect(()=>{
 
-    const initTorusWallet=async()=>{
+  useEffect(() => {
+
+    const initTorusWallet = async () => {
       console.log("Torus init called")
-      if(web3auth && provider && !torusPlugin)
-      {
-         const torusPlugin = new TorusWalletConnectorPlugin({
-           torusWalletOpts:{},
-           walletInitOptions:{
-             whiteLabel: {
-               theme: { isDark: true, colors: { primary: "#00a8ff" } },
-               logoDark: "https://web3auth.io/images/w3a-L-Favicon-1.svg",
-               logoLight: "https://web3auth.io/images/w3a-D-Favicon-1.svg",
-             },
-             useWalletConnect: true,
-             enableLogging: true,
-           }
-         });
-         setTorusPlugin(torusPlugin);
-         await web3auth.addPlugin(torusPlugin);
+      if (web3auth && !torusPlugin) {
+        const torusPlugin = new TorusWalletConnectorPlugin({
+          torusWalletOpts: {
+            buttonPosition:"top-right"
+          },
+          walletInitOptions: {
+            whiteLabel: {
+              theme: { isDark: true, colors: { primary: "#00a8ff" } },
+              logoDark: "https://web3auth.io/images/w3a-L-Favicon-1.svg",
+              logoLight: "https://web3auth.io/images/w3a-D-Favicon-1.svg",
+            },
+          }
+        });
+         
+        const torusWalletAdapter=new TorusWalletAdapter({
+          clientId:clientId,
+          web3AuthNetwork:"mainnet",
+          chainConfig: {
+            chainNamespace: CHAIN_NAMESPACES.EIP155,
+            displayName: "Sepolia",
+            chainId: "0xaa36a7",
+            rpcTarget: "https://eth-sepolia.public.blastapi.io",
+            blockExplorer: "https://goerli-optimism.etherscan.io/"// This is the public RPC we have added, please pass on your own endpoint while creating an app
+          },
+        })
+        web3auth.configureAdapter(torusWalletAdapter);
+        setTorusPlugin(torusPlugin);
+        await web3auth.addPlugin(torusPlugin);
+        setProvider((torusPlugin?.proxyProvider as SafeEventEmitterProvider) || web3auth?.provider);
       }
-     }
-    
+    }
     initTorusWallet();
-  },[provider,web3auth])
+  }, [web3auth])
 
 
   const login = async () => {
@@ -195,17 +234,46 @@ function App() {
   };
 
   const initiateTopUp = async () => {
-    if (!torusPlugin) {
-      uiConsole("torus plugin not initialized yet");
-      return;
+    try {
+      if (!provider) {
+        uiConsole("provider not initialized yet");
+        return;
+      }
+      const rpc = new RPC(provider);
+      const user_address = await rpc.getAccounts();
+      console.log(user_address)
+      if (!torusPlugin) {
+        uiConsole("torus plugin not initialized yet");
+        return;
+      }
+      // let user_info=await web3auth?.getUserInfo();
+      // console.log(user_info)
+      // let new_user_info:OpenloginUserInfo={
+      //   email:user_info?.email,
+      //   name:user_info?.name,
+      //   profileImage: user_info?.profileImage,
+      //   aggregateVerifier:user_info?.aggregateVerifier,
+      //   verifier:user_info?.verifier||"",
+      //   verifierId: user_info?.verifierId||"",
+      //   typeOfLogin: user_info?.typeOfLogin||"",
+      //   dappShare:user_info?.dappShare
+      // }
+
+      // torusPlugin.initWithProvider(provider,new_user_info);
+
+      torusPlugin.initiateTopup("moonpay", {
+        selectedAddress: user_address,
+        selectedCurrency: "USD", // Fiat currency
+        fiatValue: 100, // Fiat Value
+        selectedCryptoCurrency: "ETH", // Cryptocurreny `SOL`, `MATIC` etc.
+        chainNetwork:"optimism_mainnet", // Blockchain network
+      }  );
+      
+
     }
-    torusPlugin.initiateTopup("moonpay", {
-      selectedAddress: "0x8cFa648eBfD5736127BbaBd1d3cAe221B45AB9AF",
-      selectedCurrency: "USD",
-      fiatValue: 100,
-      selectedCryptoCurrency: "ETH",
-      chainNetwork: "mainnet",
-    });
+    catch (e) {
+            console.log(e);
+    }
   };
 
   function uiConsole(...args: any[]): void {
@@ -263,16 +331,11 @@ function App() {
             Log Out
           </button>
         </div>
-        <div>
-          <button onClick={showWCM} className="card">
-            Show Scanner
-          </button>
-        </div>
-        <div>
+        {/* <div>
           <button onClick={initiateTopUp} className="card">
             TopUp
           </button>
-        </div>
+        </div> */}
       </div>
 
       <div id="console" style={{ whiteSpace: "pre-line" }}>
@@ -289,19 +352,10 @@ function App() {
 
   return (
     <div className="container">
-      <h1 className="title">
-        <a target="_blank" href="http://web3auth.io/" rel="noreferrer">
-          Web3Auth
-        </a>
-        & ReactJS Example
-      </h1>
 
       <div className="grid">{provider ? loggedInView : unloggedInView}</div>
 
       <footer className="footer">
-        <a href="https://github.com/Web3Auth/web3auth-pnp-examples/" target="_blank" rel="noopener noreferrer">
-          Source code
-        </a>
       </footer>
     </div>
   );
